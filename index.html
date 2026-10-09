@@ -251,6 +251,23 @@ input.name::placeholder{color:#9b8ca0}
   .public-gallery{columns:3 220px}
 }
 
+
+.view-all-btn{
+  width:100%;
+  min-height:54px;
+  margin-top:16px;
+  border-radius:999px;
+  border:1px solid rgba(214,173,84,.72);
+  background:rgba(255,255,255,.96);
+  color:#5d3968;
+  font-weight:700;
+  font-size:15px;
+  cursor:pointer;
+  box-shadow:0 10px 24px rgba(35,0,42,.15);
+}
+.view-all-btn:active{transform:translateY(1px)}
+.view-all-btn.loading{opacity:.72;pointer-events:none}
+
 </style>
 </head>
 <body>
@@ -272,6 +289,10 @@ input.name::placeholder{color:#9b8ca0}
 <div class="progress" id="progress"><div class="bar" id="bar"></div></div>
 <div class="status" id="status"></div>
 <div class="note">As fotos são reduzidas automaticamente antes do envio para economizar espaço sem perder boa qualidade.</div>
+
+<button class="view-all-btn" id="viewAllBtn" type="button">
+  ✨ Ver todas as fotos da festa
+</button>
 <div class="closed" id="closed" style="display:none">Os envios deste evento já foram encerrados. As fotos continuam visíveis aqui.</div>
 
 <div class="head public-gallery-head">
@@ -498,6 +519,26 @@ async function handle(files){
   cameraInput.value='';
   galleryInput.value='';
 }
+viewAllBtn.addEventListener('click', async ()=>{
+  const original=viewAllBtn.textContent;
+  viewAllBtn.classList.add('loading');
+  viewAllBtn.textContent='Carregando todas as fotos...';
+
+  try{
+    await load();
+    document.querySelector('.public-gallery-head')?.scrollIntoView({
+      behavior:'smooth',
+      block:'start'
+    });
+  }catch(e){
+    console.error(e);
+    status.textContent='Não foi possível atualizar as fotos agora. Tente novamente.';
+  }finally{
+    viewAllBtn.classList.remove('loading');
+    viewAllBtn.textContent=original;
+  }
+});
+
 let realtimeTimer=null;
 db.channel('galeria-'+slug)
   .on('postgres_changes',{event:'*',schema:'public',table:'galeria_fotos'},()=>{
