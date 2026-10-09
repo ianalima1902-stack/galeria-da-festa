@@ -295,18 +295,121 @@ viewerClose.onclick=()=>viewer.classList.remove('open');viewer.onclick=e=>{if(e.
 cameraBtn.onclick=()=>cameraInput.click();galleryBtn.onclick=()=>galleryInput.click();
 cameraInput.onchange=()=>handle([...cameraInput.files]);galleryInput.onchange=()=>handle([...galleryInput.files]);
 async function compress(file){
- const bmp=await createImageBitmap(file);let w=bmp.width,h=bmp.height;const scale=Math.min(1,1800/Math.max(w,h));w=Math.round(w*scale);h=Math.round(h*scale);
- const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(bmp,0,0,w,h);bmp.close();
- return await new Promise(res=>c.toBlob(res,'image/jpeg',.82));
+  const maxSide=1800, quality=.82;
+
+  // Caminho mais rápido quando o navegador suporta createImageBitmap.
+  if('createImageBitmap' in window){
+    try{
+      const bmp=await createImageBitmap(file);
+      let w=bmp.width,h=bmp.height;
+      const scale=Math.min(1,maxSide/Math.max(w,h));
+      w=Math.max(1,Math.round(w*scale));
+      h=Math.max(1,Math.round(h*scale));
+
+      const c=document.createElement('canvas');
+      c.width=w;c.height=h;
+      const ctx=c.getContext('2d');
+      ctx.drawImage(bmp,0,0,w,h);
+      if(bmp.close)bmp.close();
+
+      const blob=await new Promise((resolve,reject)=>{
+        c.toBlob(b=>b?resolve(b):reject(new Error('Falha ao preparar a imagem.')),'image/jpeg',quality);
+      });
+      return blob;
+    }catch(err){
+      console.warn('createImageBitmap falhou; usando modo compatível.',err);
+    }
+  }
+
+  // Fallback compatível com Safari/iPhone e navegadores mais antigos.
+  const objectUrl=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((resolve,reject)=>{
+      const i=new Image();
+      i.onload=()=>resolve(i);
+      i.onerror=()=>reject(new Error('Não foi possível abrir a imagem escolhida.'));
+      i.src=objectUrl;
+    });
+
+    let w=img.naturalWidth||img.width;
+    let h=img.naturalHeight||img.height;
+    const scale=Math.min(1,maxSide/Math.max(w,h));
+    w=Math.max(1,Math.round(w*scale));
+    h=Math.max(1,Math.round(h*scale));
+
+    const c=document.createElement('canvas');
+    c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+
+    return await new Promise((resolve,reject)=>{
+      c.toBlob(b=>b?resolve(b):reject(new Error('Falha ao preparar a imagem.')),'image/jpeg',quality);
+    });
+  }finally{
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 async function handle(files){
- if(!open||!files.length)return;const valid=files.filter(f=>f.type.startsWith('image/'));if(!valid.length)return;
- progress.style.display='block';let done=0;
- for(const file of valid){try{status.textContent=`Enviando ${done+1} de ${valid.length}...`;const blob=await compress(file);const path=`${slug}/${Date.now()}-${crypto.randomUUID()}.jpg`;
- const {error:uerr}=await db.storage.from(BUCKET).upload(path,blob,{contentType:'image/jpeg',cacheControl:'3600'});if(uerr)throw uerr;
- const {data:r,error:rerr}=await db.rpc('registrar_foto_galeria',{p_slug:slug,p_storage_path:path,p_nome_original:file.name,p_enviado_por:guestName.value.trim()||null});if(rerr||!r?.ok)throw rerr||new Error(r?.erro);
- done++;bar.style.width=Math.round(done/valid.length*100)+'%';}catch(e){console.error(e);status.textContent='Uma foto não pôde ser enviada. Tente novamente.'}}
- if(done){status.textContent=done+' foto'+(done===1?' enviada':'s enviadas')+' com sucesso ♥';await load()}setTimeout(()=>{progress.style.display='none';bar.style.width='0'},1000);cameraInput.value='';galleryInput.value='';
+  if(!open||!files.length)return;
+
+  const valid=files.filter(f=>f.type.startsWith('image/'));
+  if(!valid.length){
+    status.textContent='Escolha uma foto válida.';
+    return;
+  }
+
+  progress.style.display='block';
+  bar.style.width='0';
+  let done=0,failed=0;
+
+  for(let i=0;i<valid.length;i++){
+    const file=valid[i];
+    try{
+      status.textContent=`Preparando foto ${i+1} de ${valid.length}...`;
+      const blob=await compress(file);
+      if(!blob)throw new Error('A imagem não pôde ser preparada.');
+
+      const uid=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
+      const path=`${slug}/${Date.now()}-${uid}.jpg`;
+
+      status.textContent=`Enviando foto ${i+1} de ${valid.length}...`;
+      const {error:uerr}=await db.storage.from(BUCKET).upload(path,blob,{
+        contentType:'image/jpeg',
+        cacheControl:'3600',
+        upsert:false
+      });
+      if(uerr)throw new Error('Upload: '+uerr.message);
+
+      const {data:r,error:rerr}=await db.rpc('registrar_foto_galeria',{
+        p_slug:slug,
+        p_storage_path:path,
+        p_nome_original:file.name,
+        p_enviado_por:guestName.value.trim()||null
+      });
+
+      if(rerr||!r?.ok){
+        // Se o arquivo subiu mas o registro falhou, remove para não deixar lixo no Storage.
+        await db.storage.from(BUCKET).remove([path]).catch(()=>{});
+        throw new Error(rerr?.message||r?.erro||'Não foi possível registrar a foto.');
+      }
+
+      done++;
+    }catch(e){
+      failed++;
+      console.error('Falha no envio:',e);
+      status.textContent='Erro no envio: '+(e?.message||'tente novamente.');
+    }
+
+    bar.style.width=Math.round((i+1)/valid.length*100)+'%';
+  }
+
+  if(done){
+    status.textContent=done+' foto'+(done===1?' enviada':'s enviadas')+' com sucesso'+(failed?` • ${failed} falhou`:'')+' ♥';
+    await load();
+  }
+
+  setTimeout(()=>{progress.style.display='none';bar.style.width='0'},1400);
+  cameraInput.value='';
+  galleryInput.value='';
 }
 db.channel('galeria-'+slug).on('postgres_changes',{event:'*',schema:'public',table:'galeria_fotos'},()=>load()).subscribe();
 load();
