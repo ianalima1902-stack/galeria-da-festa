@@ -233,6 +233,24 @@ input.name::placeholder{color:#9b8ca0}
   .card{padding:18px;border-radius:24px}
   .grid{columns:2 150px}
 }
+
+.public-gallery{
+  display:block;
+  columns:2 180px;
+  column-gap:12px;
+  min-height:90px;
+}
+.public-gallery .photo{
+  display:inline-block;
+  width:100%;
+}
+.public-gallery-head{
+  margin-top:30px;
+}
+@media(min-width:760px){
+  .public-gallery{columns:3 220px}
+}
+
 </style>
 </head>
 <body>
@@ -289,7 +307,7 @@ function render(){
  gallery.innerHTML=rows.map(r=>{
    const u=publicUrl(r.storage_path);
    return `<article class="photo">
-     <img loading="lazy" src="${u}" data-full="${u}" alt="Foto da festa">
+     <img loading="eager" src="${u}" data-full="${u}" alt="Foto da festa">
      <div class="meta"><span>${esc(r.enviado_por||'Convidado')}</span></div>
    </article>`;
  }).join('');
@@ -436,6 +454,14 @@ async function handle(files){
         );
       }
 
+      // Mostra a foto imediatamente na área pública, sem esperar nova consulta.
+      rows.unshift({
+        foto_id:'local-'+uid,
+        storage_path:path,
+        enviado_por:guestName.value.trim()||'Convidado'
+      });
+      render();
+
       done++;
     }catch(e){
       failed++;
@@ -456,8 +482,8 @@ async function handle(files){
 
     bar.style.width='100%';
 
-    // Atualiza a galeria depois, sem travar a mensagem de sucesso.
-    setTimeout(()=>{ load().catch(console.error); },250);
+    // Sincroniza com o banco depois, mas a foto já está visível para o convidado.
+    setTimeout(()=>{ load().catch(console.error); },1200);
   }else if(!failed){
     status.textContent='Nenhuma foto foi enviada.';
   }
