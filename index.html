@@ -348,6 +348,13 @@ async function compress(file){
     URL.revokeObjectURL(objectUrl);
   }
 }
+function withTimeout(promise,ms,label){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error(label||'Tempo limite excedido.')),ms))
+  ]);
+}
+
 async function handle(files){
   if(!open||!files.length)return;
 
@@ -357,61 +364,114 @@ async function handle(files){
     return;
   }
 
+  cameraBtn.disabled=true;
+  galleryBtn.disabled=true;
   progress.style.display='block';
   bar.style.width='0';
-  let done=0,failed=0;
+
+  let done=0, failed=0;
 
   for(let i=0;i<valid.length;i++){
     const file=valid[i];
+
     try{
       status.textContent=`Preparando foto ${i+1} de ${valid.length}...`;
-      const blob=await compress(file);
+
+      const blob=await withTimeout(
+        compress(file),
+        20000,
+        'A preparação da foto demorou demais.'
+      );
+
       if(!blob)throw new Error('A imagem não pôde ser preparada.');
 
-      const uid=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());
+      const uid=(crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2)+Date.now());
+
       const path=`${slug}/${Date.now()}-${uid}.jpg`;
 
       status.textContent=`Enviando foto ${i+1} de ${valid.length}...`;
-      const {error:uerr}=await db.storage.from(BUCKET).upload(path,blob,{
-        contentType:'image/jpeg',
-        cacheControl:'3600',
-        upsert:false
-      });
-      if(uerr)throw new Error('Upload: '+uerr.message);
 
-      const {data:r,error:rerr}=await db.rpc('registrar_foto_galeria',{
-        p_slug:slug,
-        p_storage_path:path,
-        p_nome_original:file.name,
-        p_enviado_por:guestName.value.trim()||null
-      });
+      const uploadResult=await withTimeout(
+        db.storage.from(BUCKET).upload(path,blob,{
+          contentType:'image/jpeg',
+          cacheControl:'3600',
+          upsert:false
+        }),
+        30000,
+        'O envio demorou demais.'
+      );
 
-      if(rerr||!r?.ok){
-        // Se o arquivo subiu mas o registro falhou, remove para não deixar lixo no Storage.
-        await db.storage.from(BUCKET).remove([path]).catch(()=>{});
-        throw new Error(rerr?.message||r?.erro||'Não foi possível registrar a foto.');
+      if(uploadResult.error){
+        throw new Error('Upload: '+uploadResult.error.message);
+      }
+
+      status.textContent=`Finalizando foto ${i+1} de ${valid.length}...`;
+
+      const regResult=await withTimeout(
+        db.rpc('registrar_foto_galeria',{
+          p_slug:slug,
+          p_storage_path:path,
+          p_nome_original:file.name,
+          p_enviado_por:guestName.value.trim()||null
+        }),
+        15000,
+        'A confirmação da foto demorou demais.'
+      );
+
+      if(regResult.error || !regResult.data?.ok){
+        try{ await db.storage.from(BUCKET).remove([path]); }catch(_){}
+        throw new Error(
+          regResult.error?.message ||
+          regResult.data?.erro ||
+          'Não foi possível confirmar a foto.'
+        );
       }
 
       done++;
     }catch(e){
       failed++;
       console.error('Falha no envio:',e);
-      status.textContent='Erro no envio: '+(e?.message||'tente novamente.');
+      status.textContent='Erro: '+(e?.message||'Não foi possível enviar a foto.');
     }
 
-    bar.style.width=Math.round((i+1)/valid.length*100)+'%';
+    bar.style.width=Math.round(((i+1)/valid.length)*100)+'%';
   }
 
+  // Conclui a interface imediatamente, sem depender do recarregamento da galeria.
   if(done){
-    status.textContent=done+' foto'+(done===1?' enviada':'s enviadas')+' com sucesso'+(failed?` • ${failed} falhou`:'')+' ♥';
-    await load();
+    status.textContent=
+      done+' foto'+(done===1?' enviada':'s enviadas')+
+      ' com sucesso'+
+      (failed?` • ${failed} não enviada${failed===1?'':'s'}`:'')+
+      ' ♥';
+
+    bar.style.width='100%';
+
+    // Atualiza a galeria depois, sem travar a mensagem de sucesso.
+    setTimeout(()=>{ load().catch(console.error); },250);
+  }else if(!failed){
+    status.textContent='Nenhuma foto foi enviada.';
   }
 
-  setTimeout(()=>{progress.style.display='none';bar.style.width='0'},1400);
+  setTimeout(()=>{
+    progress.style.display='none';
+    bar.style.width='0';
+  },1600);
+
+  cameraBtn.disabled=!open;
+  galleryBtn.disabled=!open;
   cameraInput.value='';
   galleryInput.value='';
 }
-db.channel('galeria-'+slug).on('postgres_changes',{event:'*',schema:'public',table:'galeria_fotos'},()=>load()).subscribe();
+let realtimeTimer=null;
+db.channel('galeria-'+slug)
+  .on('postgres_changes',{event:'*',schema:'public',table:'galeria_fotos'},()=>{
+    clearTimeout(realtimeTimer);
+    realtimeTimer=setTimeout(()=>load().catch(console.error),700);
+  })
+  .subscribe();
 load();
 </script>
 </body></html>
