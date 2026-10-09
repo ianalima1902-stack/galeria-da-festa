@@ -353,13 +353,38 @@ input.name::placeholder{color:#9b8ca0}
   .all-photos-top h2{font-size:25px}
 }
 
+
+.event-title-main,
+.event-title-xv{
+  display:inline;
+}
+.event-title-sep{
+  display:inline;
+}
+@media(max-width:600px){
+  .hero h1{
+    line-height:1.05;
+  }
+  .event-title-main,
+  .event-title-xv{
+    display:block;
+  }
+  .event-title-sep{
+    display:none;
+  }
+  .event-title-xv{
+    margin-top:6px;
+    font-size:.72em;
+  }
+}
+
 </style>
 </head>
 <body>
 <main class="wrap">
 <header class="hero">
       <img src="monograma.png" class="monograma" alt="Monograma Maria Eduarda">
-      <div class="eyebrow">XV ANOS • GALERIA COLABORATIVA</div>
+      <div class="eyebrow">ÁLBUM DA FESTA DA</div>
       <h1 id="eventName">Galeria da festa</h1>
       <p>Compartilhe os seus registros desta noite e ajude a guardar cada capítulo desse momento especial.</p>
     </header>
@@ -415,10 +440,22 @@ let rows=[],open=true;
 const publicUrl=p=>db.storage.from(BUCKET).getPublicUrl(p).data.publicUrl;
 function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;')}
 function shade(hex,p){const n=parseInt(hex.replace('#',''),16),a=Math.round(2.55*p);const r=Math.max(0,Math.min(255,(n>>16)+a)),g=Math.max(0,Math.min(255,((n>>8)&255)+a)),b=Math.max(0,Math.min(255,(n&255)+a));return '#'+(0x1000000+(r<<16)+(g<<8)+b).toString(16).slice(1)}
+function setEventTitle(name){
+  const parts=String(name||'').split('|').map(s=>s.trim());
+  if(parts.length>=2){
+    eventName.innerHTML=
+      '<span class="event-title-main">'+esc(parts[0])+'</span>'+
+      '<span class="event-title-sep"> | </span>'+
+      '<span class="event-title-xv">'+esc(parts.slice(1).join(' | '))+'</span>';
+  }else{
+    eventName.textContent=name||'Galeria da festa';
+  }
+}
+
 async function load(){
  const {data,error}=await db.rpc('galeria_publica',{p_slug:slug});
  if(error||!data?.length){eventName.textContent='Galeria indisponível';gallery.innerHTML='<div class="empty">Evento não encontrado.</div>';return}
- const e=data[0];eventName.textContent=e.evento_nome;open=!!e.uploads_abertos;cameraBtn.disabled=!open;galleryBtn.disabled=!open;closed.style.display=open?'none':'block';
+ const e=data[0];setEventTitle(e.evento_nome);open=!!e.uploads_abertos;cameraBtn.disabled=!open;galleryBtn.disabled=!open;closed.style.display=open?'none':'block';
  /* Tema visual fixo da Maria Eduarda */
  rows=data.filter(x=>x.foto_id);render();
 }
