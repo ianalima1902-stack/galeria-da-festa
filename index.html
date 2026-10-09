@@ -268,6 +268,91 @@ input.name::placeholder{color:#9b8ca0}
 .view-all-btn:active{transform:translateY(1px)}
 .view-all-btn.loading{opacity:.72;pointer-events:none}
 
+
+.all-photos-modal{
+  position:fixed;
+  inset:0;
+  z-index:60;
+  display:none;
+  background:rgba(38,6,45,.86);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  padding:16px;
+}
+.all-photos-modal.open{display:block}
+.all-photos-panel{
+  width:min(100%,1000px);
+  max-height:calc(100vh - 32px);
+  margin:0 auto;
+  overflow:auto;
+  background:rgba(255,255,255,.98);
+  border:1px solid rgba(214,173,84,.45);
+  border-radius:24px;
+  padding:18px;
+  box-shadow:0 24px 70px rgba(25,0,30,.34);
+}
+.all-photos-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:12px;
+}
+.all-photos-top h2{
+  margin:4px 0 0;
+  color:#5d3968;
+  font:400 30px Georgia,serif;
+}
+.all-close{
+  flex:0 0 auto;
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  border:1px solid rgba(214,173,84,.5);
+  background:#fff;
+  color:#5d3968;
+  font-size:26px;
+  cursor:pointer;
+}
+.all-loading{
+  color:#745d7d;
+  font-size:13px;
+  min-height:20px;
+  margin-bottom:10px;
+}
+.all-photos-grid{
+  columns:3 220px;
+  column-gap:12px;
+}
+.all-photo{
+  break-inside:avoid;
+  margin-bottom:12px;
+  border-radius:16px;
+  overflow:hidden;
+  border:1px solid rgba(214,173,84,.28);
+  background:#f5f1f7;
+}
+.all-photo img{
+  display:block;
+  width:100%;
+  height:auto;
+}
+.all-photo-name{
+  padding:7px 9px;
+  color:#6d5a73;
+  font-size:11px;
+}
+@media(max-width:600px){
+  .all-photos-modal{padding:8px}
+  .all-photos-panel{
+    max-height:calc(100vh - 16px);
+    border-radius:20px;
+    padding:14px;
+  }
+  .all-photos-grid{columns:2 140px}
+  .all-photos-top h2{font-size:25px}
+}
+
 </style>
 </head>
 <body>
@@ -306,6 +391,21 @@ input.name::placeholder{color:#9b8ca0}
 <section id="gallery" class="grid public-gallery"></section>
 </section>
 </main>
+
+<div class="all-photos-modal" id="allPhotosModal" aria-hidden="true">
+  <div class="all-photos-panel">
+    <div class="all-photos-top">
+      <div>
+        <div class="section-kicker">GALERIA COMPLETA</div>
+        <h2>Todas as fotos da festa</h2>
+      </div>
+      <button class="all-close" id="allPhotosClose" type="button" aria-label="Fechar">×</button>
+    </div>
+    <div class="all-loading" id="allPhotosStatus"></div>
+    <section id="allPhotosGrid" class="all-photos-grid"></section>
+  </div>
+</div>
+
 <div class="viewer" id="viewer"><button class="close" id="viewerClose">×</button><img id="viewerImg" alt=""></div>
 <script>
 const db=supabase.createClient('https://puevsrsipzzvkapqicex.supabase.co','sb_publishable_wu_JCjbkhrtquuNk7KkPfg_Z7ofeQJ_');
@@ -519,24 +619,58 @@ async function handle(files){
   cameraInput.value='';
   galleryInput.value='';
 }
-viewAllBtn.addEventListener('click', async ()=>{
-  const original=viewAllBtn.textContent;
-  viewAllBtn.classList.add('loading');
-  viewAllBtn.textContent='Carregando todas as fotos...';
+const viewAllButton=document.getElementById('viewAllBtn');
+const allPhotosModal=document.getElementById('allPhotosModal');
+const allPhotosClose=document.getElementById('allPhotosClose');
+const allPhotosGrid=document.getElementById('allPhotosGrid');
+const allPhotosStatus=document.getElementById('allPhotosStatus');
+
+function renderAllPhotos(list){
+  if(!list.length){
+    allPhotosGrid.innerHTML='<div class="empty">Ainda não há fotos compartilhadas.</div>';
+    return;
+  }
+
+  allPhotosGrid.innerHTML=list.map(r=>{
+    const u=publicUrl(r.storage_path);
+    return `<article class="all-photo">
+      <img loading="eager" src="${u}" alt="Foto da festa">
+      <div class="all-photo-name">${esc(r.enviado_por||'Convidado')}</div>
+    </article>`;
+  }).join('');
+}
+
+async function openAllPhotos(){
+  allPhotosModal.classList.add('open');
+  allPhotosModal.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+  allPhotosStatus.textContent='Carregando as fotos...';
+  allPhotosGrid.innerHTML='';
 
   try{
-    await load();
-    document.querySelector('.public-gallery-head')?.scrollIntoView({
-      behavior:'smooth',
-      block:'start'
-    });
+    const {data,error}=await db.rpc('galeria_publica',{p_slug:slug});
+    if(error)throw error;
+
+    const all=(data||[]).filter(x=>x.foto_id);
+    renderAllPhotos(all);
+    allPhotosStatus.textContent=all.length+
+      ' foto'+(all.length===1?'':'s')+' compartilhada'+(all.length===1?'':'s');
   }catch(e){
     console.error(e);
-    status.textContent='Não foi possível atualizar as fotos agora. Tente novamente.';
-  }finally{
-    viewAllBtn.classList.remove('loading');
-    viewAllBtn.textContent=original;
+    allPhotosStatus.textContent='Não foi possível carregar as fotos. Tente novamente.';
   }
+}
+
+function closeAllPhotos(){
+  allPhotosModal.classList.remove('open');
+  allPhotosModal.setAttribute('aria-hidden','true');
+  document.body.style.overflow='';
+}
+
+viewAllButton.addEventListener('click',openAllPhotos);
+allPhotosClose.addEventListener('click',closeAllPhotos);
+allPhotosModal.addEventListener('click',e=>{
+  if(e.target===allPhotosModal)closeAllPhotos();
 });
 
 let realtimeTimer=null;
