@@ -145,6 +145,14 @@ input.name::placeholder{color:#9b8ca0}
   text-align:center;
   margin-top:12px;
 }
+.public-gallery-head{
+  margin-top:28px;
+  padding-top:20px;
+  border-top:1px solid rgba(255,255,255,.22);
+}
+.public-gallery{
+  margin-top:6px;
+}
 .head{
   display:flex;
   justify-content:space-between;
@@ -184,16 +192,6 @@ input.name::placeholder{color:#9b8ca0}
   border-radius:12px;
   font-size:11px;
   backdrop-filter:blur(7px);
-}
-.dl{
-  border:1px solid rgba(214,173,84,.55);
-  background:#fff;
-  color:#5d3968;
-  border-radius:999px;
-  padding:6px 9px;
-  font-size:11px;
-  font-weight:700;
-  cursor:pointer;
 }
 .empty{
   padding:40px 15px;
@@ -256,16 +254,18 @@ input.name::placeholder{color:#9b8ca0}
 <div class="progress" id="progress"><div class="bar" id="bar"></div></div>
 <div class="status" id="status"></div>
 <div class="note">As fotos são reduzidas automaticamente antes do envio para economizar espaço sem perder boa qualidade.</div>
-<div class="closed" id="closed" style="display:none">Os envios foram encerrados. A galeria continua disponível para visualização e download.</div>
+<div class="closed" id="closed" style="display:none">Os envios deste evento já foram encerrados. As fotos continuam visíveis aqui.</div>
+
+<div class="head public-gallery-head">
+  <div>
+    <div class="section-kicker">FOTOS DA FESTA</div>
+    <h2>Momentos compartilhados</h2>
+  </div>
+  <div class="count" id="count"></div>
+</div>
+
+<section id="gallery" class="grid public-gallery"></section>
 </section>
-<div class="head">
-      <div>
-        <div class="section-kicker">NOSSO ÁLBUM</div>
-        <h2>Momentos compartilhados</h2>
-      </div>
-      <div class="count" id="count"></div>
-    </div>
-<section id="gallery" class="grid"></section>
 </main>
 <div class="viewer" id="viewer"><button class="close" id="viewerClose">×</button><img id="viewerImg" alt=""></div>
 <script>
@@ -286,11 +286,18 @@ async function load(){
 function render(){
  count.textContent=rows.length+' foto'+(rows.length===1?'':'s');
  if(!rows.length){gallery.innerHTML='<div class="empty">Ainda não há fotos. Seja o primeiro a compartilhar ✨</div>';return}
- gallery.innerHTML=rows.map(r=>{const u=publicUrl(r.storage_path);return `<article class="photo"><img loading="lazy" src="${u}" data-full="${u}"><div class="meta"><span>${esc(r.enviado_por||'Convidado')}</span><button class="dl" data-url="${u}" data-id="${r.foto_id}">Baixar</button></div></article>`}).join('');
- document.querySelectorAll('.photo img').forEach(i=>i.onclick=()=>{viewerImg.src=i.dataset.full;viewer.classList.add('open')});
- document.querySelectorAll('.dl').forEach(b=>b.onclick=e=>{e.stopPropagation();downloadOne(b.dataset.url,'foto-festa-'+b.dataset.id+'.jpg')});
+ gallery.innerHTML=rows.map(r=>{
+   const u=publicUrl(r.storage_path);
+   return `<article class="photo">
+     <img loading="lazy" src="${u}" data-full="${u}" alt="Foto da festa">
+     <div class="meta"><span>${esc(r.enviado_por||'Convidado')}</span></div>
+   </article>`;
+ }).join('');
+ document.querySelectorAll('.photo img').forEach(i=>i.onclick=()=>{
+   viewerImg.src=i.dataset.full;
+   viewer.classList.add('open');
+ });
 }
-async function downloadOne(url,name){try{const r=await fetch(url);const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}catch{window.open(url,'_blank')}}
 viewerClose.onclick=()=>viewer.classList.remove('open');viewer.onclick=e=>{if(e.target===viewer)viewer.classList.remove('open')};
 cameraBtn.onclick=()=>cameraInput.click();galleryBtn.onclick=()=>galleryInput.click();
 cameraInput.onchange=()=>handle([...cameraInput.files]);galleryInput.onchange=()=>handle([...galleryInput.files]);
