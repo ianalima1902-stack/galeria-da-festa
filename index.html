@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
+<meta charset="utaf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Galeria da festa</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -409,47 +409,6 @@ input.name::placeholder{color:#9b8ca0}
   line-height:1.45;
 }
 
-
-/* Correção reforçada: mantém o botão do Instagram visível dentro do card */
-.card a.instagram-filter-btn,
-a.instagram-filter-btn {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  min-height: 54px;
-  margin: 16px 0 0;
-  padding: 12px 18px;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  background: #fff !important;
-  color: #5d3968 !important;
-  border: 2px solid #d6ad54 !important;
-  border-radius: 999px;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.4;
-  text-align: center;
-  text-decoration: none !important;
-  cursor: pointer;
-  box-shadow: 0 10px 24px rgba(35,0,42,.2);
-}
-.card a.instagram-filter-btn:hover,
-a.instagram-filter-btn:hover {
-  background: #f8edfF !important;
-  transform: translateY(-1px);
-}
-.instagram-filter-note {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: relative;
-  z-index: 2;
-}
-
 </style>
 </head>
 <body>
@@ -476,8 +435,7 @@ a.instagram-filter-btn:hover {
   ✨ Ver todas as fotos da festa
 </button>
 
-<a class="instagram-filter-btn" id="instagramFilterBtn"
-   aria-label="Abrir a moldura da festa no Instagram"
+<a class="instagram-filter-btn"
    href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE3OTUxOTE2MTUzMDUyMjYx?story_media_id=4012907628190770831_63712425011&amp;mdxt=aHBuaWJmeWI2NW5u"
    target="_blank" rel="noopener noreferrer">
   📸 Usar nossa moldura no Instagram
@@ -513,26 +471,6 @@ a.instagram-filter-btn:hover {
 
 <div class="viewer" id="viewer"><button class="close" id="viewerClose">×</button><img id="viewerImg" alt=""></div>
 <script>
-
-// Em Android, tenta abrir o link pelo aplicativo Instagram.
-(function setupInstagramAppLink(){
-  const button = document.getElementById('instagramFilterBtn');
-  if (!button) return;
-
-  button.addEventListener('click', function(){
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    if (!isAndroid) return; // iOS usa os links universais do Instagram.
-
-    const webUrl = button.href;
-    const intentUrl = 'intent://' + webUrl.replace(/^https?:\\/\\//, '') +
-      '#Intent;scheme=https;package=com.instagram.android;' +
-      'S.browser_fallback_url=' + encodeURIComponent(webUrl) + ';end';
-
-    // A navegação pelo intent tenta abrir o app; o fallback mantém o link web.
-    button.href = intentUrl;
-  });
-})();
-
 const db=supabase.createClient('https://puevsrsipzzvkapqicex.supabase.co','sb_publishable_wu_JCjbkhrtquuNk7KkPfg_Z7ofeQJ_');
 const BUCKET='galeria-festas';
 const slug=new URLSearchParams(location.search).get('evento')||'maria-eduarda-xv';
