@@ -378,6 +378,37 @@ input.name::placeholder{color:#9b8ca0}
   }
 }
 
+
+.instagram-filter-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  width:100%;
+  min-height:54px;
+  margin-top:10px;
+  padding:12px 18px;
+  border-radius:999px;
+  border:1px solid rgba(214,173,84,.78);
+  background:linear-gradient(110deg,rgba(255,255,255,.98),rgba(248,237,255,.98));
+  color:#5d3968;
+  font-weight:700;
+  font-size:15px;
+  text-align:center;
+  text-decoration:none;
+  box-shadow:0 10px 24px rgba(35,0,42,.15);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.instagram-filter-btn:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(35,0,42,.2)}
+.instagram-filter-btn:active{transform:translateY(1px)}
+.instagram-filter-note{
+  margin:7px 4px 0;
+  text-align:center;
+  color:rgba(255,255,255,.86);
+  font-size:11px;
+  line-height:1.45;
+}
+
 </style>
 </head>
 <body>
@@ -403,6 +434,13 @@ input.name::placeholder{color:#9b8ca0}
 <button class="view-all-btn" id="viewAllBtn" type="button">
   ✨ Ver todas as fotos da festa
 </button>
+
+<a class="instagram-filter-btn"
+   href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE3OTUxOTE2MTUzMDUyMjYx?story_media_id=4012907628190770831_63712425011&amp;mdxt=aHBuaWJmeWI2NW5u"
+   target="_blank" rel="noopener noreferrer">
+  📸 Usar nossa moldura no Instagram
+</a>
+<p class="instagram-filter-note">Abra o destaque “Sua vez” e compartilhe sua foto com a moldura da festa.</p>
 <div class="closed" id="closed" style="display:none">Os envios deste evento já foram encerrados. As fotos continuam visíveis aqui.</div>
 
 <div class="head public-gallery-head">
