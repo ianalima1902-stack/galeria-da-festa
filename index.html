@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
+<meta charset="utaf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Galeria da festa</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -409,18 +409,6 @@ input.name::placeholder{color:#9b8ca0}
   line-height:1.45;
 }
 
-/* Evita display:none no seletor de câmera de navegadores móveis. */
-.visually-hidden-file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip-path:inset(50%);pointer-events:none;}
-
-/* Câmera integrada: evita depender do retorno da câmera externa. */
-.camera-modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(20,0,27,.96);padding:12px;align-items:center;justify-content:center}
-.camera-modal.open{display:flex}
-.camera-panel{width:min(100%,530px);color:#fff;text-align:center}
-.camera-panel video{display:block;width:100%;max-height:65dvh;object-fit:contain;background:#140019;border-radius:18px;margin:10px auto}
-.camera-controls{display:flex;flex-wrap:wrap;gap:9px;justify-content:center}
-.camera-controls button{min-height:48px;border:1px solid #d6ad54;border-radius:999px;padding:10px 17px;background:#fff;color:#5d3968;font-weight:700}
-.camera-tip{font-size:13px;color:#f0d79a;min-height:22px;margin:8px}
-
 </style>
 </head>
 <body>
@@ -437,7 +425,7 @@ input.name::placeholder{color:#9b8ca0}
 <button class="btn primary" id="cameraBtn">📷 Tirar uma foto</button>
 <button class="btn secondary" id="galleryBtn">🖼️ Enviar da galeria</button>
 </div>
-<input id="cameraInput" type="file" accept="image/*" capture="environment" class="visually-hidden-file" aria-label="Fotografar para enviar">
+<input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
 <input id="galleryInput" type="file" accept="image/*" multiple hidden>
 <div class="progress" id="progress"><div class="bar" id="bar"></div></div>
 <div class="status" id="status"></div>
@@ -447,9 +435,9 @@ input.name::placeholder{color:#9b8ca0}
   ✨ Ver todas as fotos da festa
 </button>
 
-<a class="instagram-filter-btn" id="instagramFilterBtn"
+<a class="instagram-filter-btn"
    href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE3OTM0OTUxMzcyMTQyMjE1?story_media_id=4014696149142686584_63712425011&amp;psln=Nnc3c3l3NTUzbThs"
-   rel="noopener noreferrer">
+   target="_blank" rel="noopener noreferrer">
   📸 Usar nossa moldura no Instagram
 </a>
 <p class="instagram-filter-note">Abra o destaque “Sua vez” e compartilhe sua foto com a moldura da festa.</p>
@@ -478,20 +466,6 @@ input.name::placeholder{color:#9b8ca0}
     </div>
     <div class="all-loading" id="allPhotosStatus"></div>
     <section id="allPhotosGrid" class="all-photos-grid"></section>
-  </div>
-</div>
-
-
-<div id="cameraModal" class="camera-modal" role="dialog" aria-modal="true" aria-label="Câmera da festa" aria-hidden="true">
-  <div class="camera-panel">
-    <strong>📷 Tire sua foto da festa</strong>
-    <div id="cameraTip" class="camera-tip">Preparando câmera…</div>
-    <video id="cameraPreview" autoplay muted playsinline></video>
-    <div class="camera-controls">
-      <button id="cameraCapture" type="button">📸 Capturar e enviar</button>
-      <button id="cameraNative" type="button">Usar câmera do celular</button>
-      <button id="cameraCancel" type="button">Fechar</button>
-    </div>
   </div>
 </div>
 
@@ -539,98 +513,8 @@ function render(){
  });
 }
 viewerClose.onclick=()=>viewer.classList.remove('open');viewer.onclick=e=>{if(e.target===viewer)viewer.classList.remove('open')};
-const statusEl = document.getElementById('status');
-const cameraModal = document.getElementById('cameraModal');
-const cameraPreview = document.getElementById('cameraPreview');
-const cameraTip = document.getElementById('cameraTip');
-const cameraCapture = document.getElementById('cameraCapture');
-let cameraStream = null;
-let cameraBusy = false;
-let prevBodyOverflow = '';
-
-function stopCamera(){
-  if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
-  cameraStream = null;
-  cameraPreview.pause();
-  cameraPreview.srcObject = null;
-}
-function closeCamera(){
-  stopCamera();
-  cameraModal.classList.remove('open');
-  cameraModal.setAttribute('aria-hidden','true');
-  document.body.style.overflow = prevBodyOverflow;
-}
-async function openCamera(){
-  if (!open || cameraBusy) return;
-  prevBodyOverflow = document.body.style.overflow;
-  cameraModal.classList.add('open');
-  cameraModal.setAttribute('aria-hidden','false');
-  document.body.style.overflow = 'hidden';
-  cameraCapture.disabled = true;
-  cameraTip.textContent = 'Solicitando acesso à câmera…';
-  try {
-    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Este navegador não permite câmera diretamente no site.');
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:1920}},
-      audio:false
-    });
-    cameraPreview.srcObject = cameraStream;
-    await cameraPreview.play();
-    cameraCapture.disabled = false;
-    cameraTip.textContent = 'Enquadre a foto e toque em Capturar e enviar.';
-  } catch(err){
-    console.error('Acesso à câmera indisponível:',err);
-    stopCamera();
-    cameraTip.textContent = 'Não foi possível acessar a câmera aqui. Use “Usar câmera do celular” ou “Enviar da galeria”.';
-  }
-}
-
-cameraBtn.addEventListener('click',openCamera);
-document.getElementById('cameraCancel').addEventListener('click',closeCamera);
-document.getElementById('cameraNative').addEventListener('click',()=>{
-  closeCamera();
-  cameraInput.value = '';
-  statusEl.textContent = 'Após confirmar a foto, aguarde o envio. Se não funcionar, fotografe no celular e use Enviar da galeria.';
-  cameraInput.click();
-});
-
-cameraCapture.addEventListener('click',async()=>{
-  if (cameraBusy || !cameraStream || !cameraPreview.videoWidth) return;
-  cameraBusy = true;
-  cameraCapture.disabled = true;
-  cameraTip.textContent = 'Preparando fotografia…';
-  try {
-    const w = cameraPreview.videoWidth, h = cameraPreview.videoHeight;
-    const ratio=Math.min(1,1800/Math.max(w,h));
-    const canvas=document.createElement('canvas');
-    canvas.width=Math.max(1,Math.round(w*ratio));
-    canvas.height=Math.max(1,Math.round(h*ratio));
-    canvas.getContext('2d').drawImage(cameraPreview,0,0,canvas.width,canvas.height);
-    const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Não foi possível capturar a foto.')),'image/jpeg',.85));
-    const foto=new File([blob],'foto-camera-'+Date.now()+'.jpg',{type:'image/jpeg'});
-    closeCamera();
-    statusEl.textContent = 'Foto capturada. Iniciando envio…';
-    await handle([foto]);
-  } catch(err){
-    console.error('Erro na foto:',err);
-    closeCamera();
-    statusEl.textContent = 'Erro ao capturar: '+(err?.message||'tente novamente.');
-  } finally { cameraBusy=false; cameraCapture.disabled=false; }
-});
-
-// Opção nativa para aparelhos sem getUserMedia; mantém o campo original.
-cameraInput.addEventListener('change',()=>{
-  const files=Array.from(cameraInput.files||[]);
-  if(files.length){
-    statusEl.textContent='Foto recebida do celular. Iniciando envio…';
-    handle(files).catch(e=>{ console.error(e);statusEl.textContent='Falha ao enviar: '+(e?.message||'Erro inesperado.'); });
-  }
-});
-galleryBtn.addEventListener('click',()=>galleryInput.click());
-galleryInput.addEventListener('change',()=>{
-  const files=Array.from(galleryInput.files||[]);
-  if(files.length)handle(files).catch(e=>{ console.error(e);statusEl.textContent='Falha ao enviar: '+(e?.message||'Erro inesperado.'); });
-});
+cameraBtn.onclick=()=>cameraInput.click();galleryBtn.onclick=()=>galleryInput.click();
+cameraInput.onchange=()=>handle([...cameraInput.files]);galleryInput.onchange=()=>handle([...galleryInput.files]);
 async function compress(file){
   const maxSide=1800, quality=.82;
 
@@ -697,7 +581,7 @@ async function handle(files){
 
   const valid=files.filter(f=>f.type.startsWith('image/'));
   if(!valid.length){
-    statusEl.textContent='Escolha uma foto válida.';
+    status.textContent='Escolha uma foto válida.';
     return;
   }
 
@@ -712,7 +596,7 @@ async function handle(files){
     const file=valid[i];
 
     try{
-      statusEl.textContent=`Preparando foto ${i+1} de ${valid.length}...`;
+      status.textContent=`Preparando foto ${i+1} de ${valid.length}...`;
 
       const blob=await withTimeout(
         compress(file),
@@ -728,7 +612,7 @@ async function handle(files){
 
       const path=`${slug}/${Date.now()}-${uid}.jpg`;
 
-      statusEl.textContent=`Enviando foto ${i+1} de ${valid.length}...`;
+      status.textContent=`Enviando foto ${i+1} de ${valid.length}...`;
 
       const uploadResult=await withTimeout(
         db.storage.from(BUCKET).upload(path,blob,{
@@ -744,7 +628,7 @@ async function handle(files){
         throw new Error('Upload: '+uploadResult.error.message);
       }
 
-      statusEl.textContent=`Finalizando foto ${i+1} de ${valid.length}...`;
+      status.textContent=`Finalizando foto ${i+1} de ${valid.length}...`;
 
       const regResult=await withTimeout(
         db.rpc('registrar_foto_galeria',{
@@ -778,7 +662,7 @@ async function handle(files){
     }catch(e){
       failed++;
       console.error('Falha no envio:',e);
-      statusEl.textContent='Erro: '+(e?.message||'Não foi possível enviar a foto.');
+      status.textContent='Erro: '+(e?.message||'Não foi possível enviar a foto.');
     }
 
     bar.style.width=Math.round(((i+1)/valid.length)*100)+'%';
@@ -786,7 +670,7 @@ async function handle(files){
 
   // Conclui a interface imediatamente, sem depender do recarregamento da galeria.
   if(done){
-    statusEl.textContent=
+    status.textContent=
       done+' foto'+(done===1?' enviada':'s enviadas')+
       ' com sucesso'+
       (failed?` • ${failed} não enviada${failed===1?'':'s'}`:'')+
@@ -797,7 +681,7 @@ async function handle(files){
     // Sincroniza com o banco depois, mas a foto já está visível para o convidado.
     setTimeout(()=>{ load().catch(console.error); },1200);
   }else if(!failed){
-    statusEl.textContent='Nenhuma foto foi enviada.';
+    status.textContent='Nenhuma foto foi enviada.';
   }
 
   setTimeout(()=>{
@@ -873,33 +757,4 @@ db.channel('galeria-'+slug)
   .subscribe();
 load();
 </script>
-
-<script>
-/*
- * Compatibilidade do link do Instagram:
- * - Android: tenta abrir diretamente o app via intent, com fallback para a página web.
- * - iPhone/iPad: mantém o link HTTPS normal para o iOS decidir se abre o app.
- * Só atua no botão do Instagram; não altera os outros botões da galeria.
- */
-(function () {
-  const instagramButton = document.getElementById('instagramFilterBtn');
-  if (!instagramButton) return;
-
-  instagramButton.addEventListener('click', function (event) {
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    if (!isAndroid) return;
-
-    event.preventDefault();
-
-    const webUrl = instagramButton.href;
-    const intentUrl =
-      'intent://' + webUrl.replace(/^https?:\/\//i, '') +
-      '#Intent;scheme=https;package=com.instagram.android;' +
-      'S.browser_fallback_url=' + encodeURIComponent(webUrl) + ';end';
-
-    window.location.href = intentUrl;
-  });
-})();
-</script>
-
 </body></html>
