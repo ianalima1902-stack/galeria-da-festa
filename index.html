@@ -435,9 +435,9 @@ input.name::placeholder{color:#9b8ca0}
   ✨ Ver todas as fotos da festa
 </button>
 
-<a class="instagram-filter-btn"
+<a class="instagram-filter-btn" id="instagramFilterBtn"
    href="https://www.instagram.com/s/aGlnaGxpZ2h0OjE3OTM0OTUxMzcyMTQyMjE1?story_media_id=4014696149142686584_63712425011&amp;psln=Nnc3c3l3NTUzbThs"
-   target="_blank" rel="noopener noreferrer">
+   rel="noopener noreferrer">
   📸 Usar nossa moldura no Instagram
 </a>
 <p class="instagram-filter-note">Abra o destaque “Sua vez” e compartilhe sua foto com a moldura da festa.</p>
@@ -756,5 +756,32 @@ db.channel('galeria-'+slug)
   })
   .subscribe();
 load();
+</script>
+<script>
+/*
+ * Compatibilidade do link do Instagram:
+ * - Android: tenta abrir diretamente o app via intent, com fallback para a página web.
+ * - iPhone/iPad: mantém o link HTTPS normal para o iOS decidir se abre o app.
+ * Só atua no botão do Instagram; não altera os outros botões da galeria.
+ */
+(function () {
+  const instagramButton = document.getElementById('instagramFilterBtn');
+  if (!instagramButton) return;
+
+  instagramButton.addEventListener('click', function (event) {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (!isAndroid) return;
+
+    event.preventDefault();
+
+    const webUrl = instagramButton.href;
+    const intentUrl =
+      'intent://' + webUrl.replace(/^https?:\/\//i, '') +
+      '#Intent;scheme=https;package=com.instagram.android;' +
+      'S.browser_fallback_url=' + encodeURIComponent(webUrl) + ';end';
+
+    window.location.href = intentUrl;
+  });
+})();
 </script>
 </body></html>
