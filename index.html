@@ -409,6 +409,8 @@ input.name::placeholder{color:#9b8ca0}
   line-height:1.45;
 }
 
+/* Evita display:none no seletor de câmera de navegadores móveis. */
+.visually-hidden-file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip-path:inset(50%);pointer-events:none;}
 </style>
 </head>
 <body>
@@ -425,7 +427,7 @@ input.name::placeholder{color:#9b8ca0}
 <button class="btn primary" id="cameraBtn">📷 Tirar uma foto</button>
 <button class="btn secondary" id="galleryBtn">🖼️ Enviar da galeria</button>
 </div>
-<input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
+<input id="cameraInput" type="file" accept="image/*" capture="environment" class="visually-hidden-file" aria-label="Fotografar para enviar">
 <input id="galleryInput" type="file" accept="image/*" multiple hidden>
 <div class="progress" id="progress"><div class="bar" id="bar"></div></div>
 <div class="status" id="status"></div>
@@ -513,8 +515,28 @@ function render(){
  });
 }
 viewerClose.onclick=()=>viewer.classList.remove('open');viewer.onclick=e=>{if(e.target===viewer)viewer.classList.remove('open')};
-cameraBtn.onclick=()=>cameraInput.click();galleryBtn.onclick=()=>galleryInput.click();
-cameraInput.onchange=()=>handle([...cameraInput.files]);galleryInput.onchange=()=>handle([...galleryInput.files]);
+const statusEl = document.getElementById('status');
+let cameraInProgress = false;
+cameraBtn.onclick = () => {
+  if (!open || cameraInProgress) return;
+  cameraInput.value = '';
+  statusEl.textContent = 'Aguardando a foto da câmera…';
+  cameraInput.click();
+};
+galleryBtn.onclick = () => galleryInput.click();
+cameraInput.addEventListener('change', async () => {
+  const selected = Array.from(cameraInput.files || []);
+  if (!selected.length) {
+    statusEl.textContent = 'Nenhuma foto recebida da câmera. Se necessário, tire a foto pelo celular e use “Enviar da galeria”.';
+    return;
+  }
+  cameraInProgress = true;
+  statusEl.textContent = 'Foto recebida! Preparando envio…';
+  try { await handle(selected); }
+  catch (e) { console.error('Erro inesperado da câmera', e); statusEl.textContent = 'Falha ao enviar: ' + (e?.message || 'erro inesperado'); }
+  finally { cameraInProgress = false; }
+});
+galleryInput.onchange = () => handle(Array.from(galleryInput.files || []));
 async function compress(file){
   const maxSide=1800, quality=.82;
 
@@ -581,7 +603,7 @@ async function handle(files){
 
   const valid=files.filter(f=>f.type.startsWith('image/'));
   if(!valid.length){
-    status.textContent='Escolha uma foto válida.';
+    statusEl.textContent='Escolha uma foto válida.';
     return;
   }
 
@@ -596,7 +618,7 @@ async function handle(files){
     const file=valid[i];
 
     try{
-      status.textContent=`Preparando foto ${i+1} de ${valid.length}...`;
+      statusEl.textContent=`Preparando foto ${i+1} de ${valid.length}...`;
 
       const blob=await withTimeout(
         compress(file),
@@ -612,7 +634,7 @@ async function handle(files){
 
       const path=`${slug}/${Date.now()}-${uid}.jpg`;
 
-      status.textContent=`Enviando foto ${i+1} de ${valid.length}...`;
+      statusEl.textContent=`Enviando foto ${i+1} de ${valid.length}...`;
 
       const uploadResult=await withTimeout(
         db.storage.from(BUCKET).upload(path,blob,{
@@ -628,7 +650,7 @@ async function handle(files){
         throw new Error('Upload: '+uploadResult.error.message);
       }
 
-      status.textContent=`Finalizando foto ${i+1} de ${valid.length}...`;
+      statusEl.textContent=`Finalizando foto ${i+1} de ${valid.length}...`;
 
       const regResult=await withTimeout(
         db.rpc('registrar_foto_galeria',{
@@ -662,7 +684,7 @@ async function handle(files){
     }catch(e){
       failed++;
       console.error('Falha no envio:',e);
-      status.textContent='Erro: '+(e?.message||'Não foi possível enviar a foto.');
+      statusEl.textContent='Erro: '+(e?.message||'Não foi possível enviar a foto.');
     }
 
     bar.style.width=Math.round(((i+1)/valid.length)*100)+'%';
@@ -670,7 +692,7 @@ async function handle(files){
 
   // Conclui a interface imediatamente, sem depender do recarregamento da galeria.
   if(done){
-    status.textContent=
+    statusEl.textContent=
       done+' foto'+(done===1?' enviada':'s enviadas')+
       ' com sucesso'+
       (failed?` • ${failed} não enviada${failed===1?'':'s'}`:'')+
@@ -681,7 +703,7 @@ async function handle(files){
     // Sincroniza com o banco depois, mas a foto já está visível para o convidado.
     setTimeout(()=>{ load().catch(console.error); },1200);
   }else if(!failed){
-    status.textContent='Nenhuma foto foi enviada.';
+    statusEl.textContent='Nenhuma foto foi enviada.';
   }
 
   setTimeout(()=>{
